@@ -730,7 +730,7 @@ func (c *OperatorDebugCommand) collectNomad(dir string, client *api.Client) erro
 	// Loop over each plugin - /v1/plugin/csi/:plugin_id
 	for _, p := range ps {
 		csiPlugin, _, _ := client.CSIPlugins().Info(p.ID, qo)
-		csiPluginFileName := fmt.Sprintf("csi-plugin-id-%s", v.ID)
+		csiPluginFileName := fmt.Sprintf("csi-plugin-id-%s", p.ID)
 		c.writeJSON(dir, csiPluginFileName, csiPlugin, err)
 	}
 
