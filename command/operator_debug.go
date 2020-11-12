@@ -725,16 +725,25 @@ func (c *OperatorDebugCommand) collectNomad(dir string, client *api.Client) erro
 	ns, _, err := client.Nodes().List(qo)
 	c.writeJSON(dir, "nodes.json", ns, err)
 
+	// CSI Plugins - /v1/plugins?type=csi
 	ps, _, err := client.CSIPlugins().List(qo)
 	c.writeJSON(dir, "plugins.json", ps, err)
 
-	vs, _, err := client.CSIVolumes().List(qo)
-	c.writeJSON(dir, "volumes.json", vs, err)
+	// Loop over each plugin - /v1/plugin/csi/:plugin_id
+	for _, p := range ps {
+		csiPlugin, _, _ := client.CSIPlugins().Info(p.ID, qo)
+		c.Ui.Output(c.Colorize().Color("csi plugin -- id: [green[" + csiPlugin.ID + "[reset]"))
+	}
 
-	if metricBytes, err := client.Operator().Metrics(qo); err != nil {
-		c.writeError(dir, "metrics.json", err)
-	} else {
-		c.writeBytes(dir, "metrics.json", metricBytes)
+	// CSI Volumes - /v1/volumes?type=csi
+	csiVolumes, _, err := client.CSIVolumes().List(qo)
+	c.writeJSON(dir, "csi-volumes.json", csiVolumes, err)
+
+	// Loop over each volume - /v1/volumes/csi/:volume-id
+	for _, v := range csiVolumes {
+		csiVolume, _, err := client.CSIVolumes().Info(v.ID, qo)
+		csiFileName := fmt.Sprintf("csi-volume-id-%s", v.ID)
+		c.writeJSON(dir, csiFileName, csiVolume, err)
 	}
 
 	return nil
