@@ -730,7 +730,8 @@ func (c *OperatorDebugCommand) collectNomad(dir string, client *api.Client) erro
 	// Loop over each plugin - /v1/plugin/csi/:plugin_id
 	for _, p := range ps {
 		csiPlugin, _, _ := client.CSIPlugins().Info(p.ID, qo)
-		c.Ui.Output(c.Colorize().Color("csi plugin -- id: [green[" + csiPlugin.ID + "[reset]"))
+		csiPluginFileName := fmt.Sprintf("csi-plugin-id-%s", v.ID)
+		c.writeJSON(dir, csiPluginFileName, csiPlugin, err)
 	}
 
 	// CSI Volumes - /v1/volumes?type=csi
