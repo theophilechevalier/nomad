@@ -1,6 +1,7 @@
 package allocrunner
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -19,7 +20,7 @@ type networkStatusGetter interface {
 // groupServiceHook manages task group Consul service registration and
 // deregistration.
 type groupServiceHook struct {
-	allocID             string
+	alloc               *structs.Allocation
 	group               string
 	restarter           agentconsul.WorkloadRestarter
 	consulClient        consul.ConsulServiceAPI
@@ -60,7 +61,7 @@ func newGroupServiceHook(cfg groupServiceHookConfig) *groupServiceHook {
 	}
 
 	h := &groupServiceHook{
-		allocID:             cfg.alloc.ID,
+		alloc:               cfg.alloc, // YOU ARE HERE, pass in the alloc?
 		group:               cfg.alloc.TaskGroup,
 		restarter:           cfg.restarter,
 		consulClient:        cfg.consul,
@@ -87,6 +88,8 @@ func (*groupServiceHook) Name() string {
 }
 
 func (h *groupServiceHook) Prerun() error {
+	fmt.Println("gsh.Prerun alloc:", h.alloc.ID)
+
 	h.mu.Lock()
 	defer func() {
 		// Mark prerun as true to unblock Updates
@@ -95,8 +98,12 @@ func (h *groupServiceHook) Prerun() error {
 	}()
 
 	if len(h.services) == 0 {
+		fmt.Println(" zero services")
 		return nil
 	}
+
+	// let the thing do its thing
+	h.taskEnvBuilder.UpdateTask(h.alloc, nil) // if only
 
 	services := h.getWorkloadServices()
 	return h.consulClient.RegisterWorkload(services)
@@ -105,6 +112,7 @@ func (h *groupServiceHook) Prerun() error {
 func (h *groupServiceHook) Update(req *interfaces.RunnerUpdateRequest) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	fmt.Println("gsh.Update alloc:", h.alloc.ID)
 
 	oldWorkloadServices := h.getWorkloadServices()
 
@@ -131,6 +139,7 @@ func (h *groupServiceHook) Update(req *interfaces.RunnerUpdateRequest) error {
 	h.services = tg.Services
 	h.canary = canary
 	h.delay = shutdown
+
 	h.taskEnvBuilder.UpdateTask(req.Alloc, nil)
 
 	// Create new task services struct with those new values
@@ -200,7 +209,7 @@ func (h *groupServiceHook) getWorkloadServices() *agentconsul.WorkloadServices {
 
 	// Create task services struct with request's driver metadata
 	return &agentconsul.WorkloadServices{
-		AllocID:       h.allocID,
+		AllocID:       h.alloc.ID,
 		Group:         h.group,
 		Restarter:     h.restarter,
 		Services:      interpolatedServices,
